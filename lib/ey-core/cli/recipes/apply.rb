@@ -13,22 +13,22 @@ class Ey::Core::Cli::Recipes::Apply < Ey::Core::Cli::Recipes
     operator, environment = core_operator_and_environment_for(options)
     raise "Unable to find matching environment" unless environment
 
-    run_type = if switch_active?(:main)
-                 "main"
-               elsif switch_active?(:custom)
-                 "custom"
-               elsif switch_active?(:quick)
-                 "quick"
-               elsif switch_active?(:full)
-                 "main"
-               else
-                 "main"
-               end
-
     run_chef(run_type, environment)
+    run_chef('custom', environment) if switch_active?(:full)
+  end
 
-    if switch_active?(:full)
-      run_chef("custom", environment)
+  private
+  def run_type
+    if switch_active?(:main)
+      "main"
+    elsif switch_active?(:custom)
+      "custom"
+    elsif switch_active?(:quick)
+      "quick"
+    elsif switch_active?(:full)
+      "main"
+    else
+      "main"
     end
   end
 end
