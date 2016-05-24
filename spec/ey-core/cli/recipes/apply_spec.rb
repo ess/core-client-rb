@@ -9,15 +9,20 @@ describe Ey::Core::Cli::Recipes::Apply do
   describe '#run_type' do
     let(:run_type) {apply.instance_eval {run_type}}
 
+    # By default, we want to assume that no switches are active
+    before(:each) do
+      allow(apply).to receive(:switch_active?).and_return(nil)
+    end
+
     it 'is a string' do
       expect(run_type).to be_a(String)
     end
 
     context 'when the main switch is active' do
       before(:each) do
-        apply.switches.merge!(
-          main: true, custom: true, quick: true, full: true
-        )
+        [:main, :custom, :quick, :full].each do |switch|
+          allow(apply).to receive(:switch_active?).with(switch).and_return(true)
+        end
       end
 
       it 'is main' do
@@ -26,11 +31,11 @@ describe Ey::Core::Cli::Recipes::Apply do
     end
 
     context 'when the main switch is not active' do
-      context 'when the custom switch is active' do
+      context 'but the custom switch is active' do
         before(:each) do
-          apply.switches.merge!(
-            custom: true, quick: true, full: true
-          )
+          [:custom, :quick, :full].each do |switch|
+            allow(apply).to receive(:switch_active?).with(switch).and_return(true)
+          end
         end
 
         it 'is custom' do
@@ -38,12 +43,12 @@ describe Ey::Core::Cli::Recipes::Apply do
         end
       end
 
-      context 'when the custom switch is not active' do
-        context 'when the quick switch is active' do
+      context 'and the custom switch is not active' do
+        context 'but the quick switch is active' do
           before(:each) do
-            apply.switches.merge!(
-              quick: true, full: true
-            )
+            [:quick, :full].each do |switch|
+              allow(apply).to receive(:switch_active?).with(switch).and_return(true)
+            end
           end
 
           it 'is quick' do
@@ -51,12 +56,12 @@ describe Ey::Core::Cli::Recipes::Apply do
           end
         end
 
-        context 'when the quick switch is not active' do
-          context 'when the full switch is active' do
+        context 'and the quick switch is not active' do
+          context 'but the full switch is active' do
             before(:each) do
-              apply.switches.merge!(
-                full: true
-              )
+              [:full].each do |switch|
+                allow(apply).to receive(:switch_active?).with(switch).and_return(true)
+              end
             end
 
             it 'is main' do
@@ -69,7 +74,6 @@ describe Ey::Core::Cli::Recipes::Apply do
 
     context 'when no run type switches are active' do
       it 'is main' do
-        expect(apply.switches).to be_empty
         expect(run_type).to eql('main')
       end
     end
