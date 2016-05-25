@@ -1,3 +1,5 @@
+require 'ey-core/util/server_sieve'
+
 class Ey::Core::Cli::Ssh < Ey::Core::Cli::Subcommand
   title "ssh"
   summary "Open an SSH session to the environment's application master"
@@ -29,7 +31,7 @@ class Ey::Core::Cli::Ssh < Ey::Core::Cli::Subcommand
 
 
 
-    if option(:command)
+    if cmd
       if shell = option(:shell)
         cmd = Escape.shell_command([shell,'-lc',cmd])
       end
@@ -71,55 +73,82 @@ class Ey::Core::Cli::Ssh < Ey::Core::Cli::Subcommand
   end
 
   def filtered_servers(environment)
-    servers = []
-
-    if switch_active?(:all)
-      servers += all(environment)
-    end
-
-    if switch_active?(:app_servers)
-      servers += app_servers(environment)
-    end
-
-    if switch_active?(:db_servers)
-      servers += db_servers(environment)
-    end
-
-    if switch_active?(:db_master)
-      servers += db_master(environment)
-    end
-
-    if utils = option(:utilities)
-      servers += utils_named(environment, utils)
-    end
-
-    servers.uniq
+    Ey::Core::Util::ServerSieve.filter(
+        environment.servers,
+        all: switch_active?(:all),
+        app_servers: switch_active?(:app_servers),
+        db_servers: switch_active?(:db_servers),
+        db_master: switch_active?(:db_master),
+        utilities: option(:utilities)
+      )
   end
 
-  def all(environment)
-    environment.servers.all.to_a
-  end
+  #class ServerSieve
+    #ROLES = [
+      #:app_servers,
+      #:db_servers,
+      #:db_master,
+      #:utilities
+    #]
 
-  def app_servers(environment)
-    ['app_master', 'app', 'solo'].
-      map {|role| environment.servers.all(role: role).to_a}.
-      flatten
-  end
+    #attr_reader :environment, :options
 
-  def db_servers(environment)
-    db_master(environment) + environment.servers.all(role: 'db_slave').to_a
-  end
+    #def self.filter(environment, options = {})
+      #new(environment, options).filtered
+    #end
 
-  def db_master(environment)
-    ['db_master', 'solo'].
-      map {|role| environment.servers.all(role: role).to_a}.
-      flatten
-  end
+    #def initialize(environment, options = {})
+      #@environment = environment
+      #@options = options
+    #end
 
-  def utils_named(environment, name)
-    filter = {role: 'util'}
-    filter[:name] = name unless name.downcase == 'all'
-    
-    environment.servers.all(filter).to_a
-  end
+    #def filtered
+      #return all_servers if requested?(:all)
+
+      #requested_roles.map {|role|
+        #role == :utilities ? utils_named(option(:utilities)) : send(role)
+      #}.flatten.uniq
+    #end
+
+    #def requested_roles
+      ##self.class::
+      #ROLES.select {|role| requested?(role)}
+    #end
+
+    #def option(name)
+      #options[name]
+    #end
+
+    #def requested?(name)
+      #option(name)
+    #end
+
+    #def all_servers
+      #environment.servers.all.to_a.uniq
+    #end
+
+    #def app_servers
+      #['app_master', 'app', 'solo'].
+        #map {|role| environment.servers.all(role: role).to_a}.
+        #flatten
+    #end
+
+    #def db_servers
+      #db_master + environment.servers.all(role: 'db_slave').to_a
+    #end
+
+    #def db_master
+      #['db_master', 'solo'].
+        #map {|role| environment.servers.all(role: role).to_a}.
+        #flatten
+    #end
+
+    #def utils_named(name)
+      #filter = {role: 'util'}
+      #filter[:name] = name unless name.downcase == 'all'
+
+      #environment.servers.all(filter).to_a
+    #end
+
+  #end
 end
