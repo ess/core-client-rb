@@ -40,29 +40,7 @@ class Ey::Core::Cli::Ssh < Ey::Core::Cli::Subcommand
         puts "sudo commands often need a tty to run correctly. Use -t option to spawn a tty.".yellow
       end
 
-      if switch_active?(:all)
-        servers += environment.servers.all.to_a
-      end
-
-      if switch_active?(:app_servers)
-        servers += (environment.servers.all(role: "app_master") + environment.servers.all(role: "app") + environment.servers.all(role: "solo")).to_a
-      end
-
-      if switch_active?(:db_servers)
-        servers += (environment.servers.all(role: "db_master") + environment.servers.all(role: "db_slave") + environment.servers.all(role: "solo")).to_a
-      end
-
-      if switch_active?(:db_master)
-        servers += (environment.servers.all(role: "db_master") + environment.servers.all(role: "solo")).to_a
-      end
-
-      if utils = option(:utilities)
-        if utils == 'all'
-          servers += environment.servers.all(role: "util").to_a
-        else
-          servers += environment.servers.all(role: "util", name: utils).to_a
-        end
-      end
+      servers += filtered_servers(environment)
     else
       if option(:bind_address)
         ssh_opts += ["-L", option(:bind_address)]
@@ -90,5 +68,58 @@ class Ey::Core::Cli::Ssh < Ey::Core::Cli::Subcommand
     end
 
     exit exits.detect {|status| status != 0 } || 0
+  end
+
+  def filtered_servers(environment)
+    servers = []
+
+    if switch_active?(:all)
+      servers += all(environment)
+    end
+
+    if switch_active?(:app_servers)
+      servers += app_servers(environment)
+    end
+
+    if switch_active?(:db_servers)
+      servers += db_servers(environment)
+    end
+
+    if switch_active?(:db_master)
+      servers += db_master(environment)
+    end
+
+    if utils = option(:utilities)
+      servers += utils_named(environment, utils)
+    end
+
+    servers.uniq
+  end
+
+  def all(environment)
+    environment.servers.all.to_a
+  end
+
+  def app_servers(environment)
+    ['app_master', 'app', 'solo'].
+      map {|role| environment.servers.all(role: role).to_a}.
+      flatten
+  end
+
+  def db_servers(environment)
+    db_master(environment) + environment.servers.all(role: 'db_slave').to_a
+  end
+
+  def db_master(environment)
+    ['db_master', 'solo'].
+      map {|role| environment.servers.all(role: role).to_a}.
+      flatten
+  end
+
+  def utils_named(environment, name)
+    filter = {role: 'util'}
+    filter[:name] = name unless name.downcase == 'all'
+    
+    environment.servers.all(filter).to_a
   end
 end
